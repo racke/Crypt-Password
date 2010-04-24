@@ -3,6 +3,8 @@ use Exporter 'import';
 @EXPORT = ('password');
 our $VERSION = "0.05";
 
+use Carp;
+
 use overload
     '""' => \&crypt,
     'eq' => \&crypt,
@@ -96,9 +98,9 @@ sub algorithm {
 sub _crypt {
     my $self = shift;
     
-    defined $self->{input} || die "no input!";
-    $self->{algorithm_magic} || die "no algorithm!";
-    defined $self->{salt} || die "invalid salt!";
+    defined $self->{input} || croak "no input!";
+    $self->{algorithm_magic} || croak "no algorithm!";
+    defined $self->{salt} || croak "invalid salt!";
     
     CORE::crypt(delete $self->{input}, $self->{algorithm_magic}.$self->{salt})
 }
