@@ -237,7 +237,7 @@ If you have a problem, submit a test case via a fork of the github repo.
 
 =head1 AUTHOR AND LICENCE
 
-Code by Steve Craig, L<steve@catalyst.net.nz>, idea by Sam Vilain,
+Code by Steve Eirium, L<nostrasteve@gmail.com>, idea by Sam Vilain,
 L<sam.vilain@catalyst.net.nz>.  Development commissioned by NZ
 Registry Services.
 
