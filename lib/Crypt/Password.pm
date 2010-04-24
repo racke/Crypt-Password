@@ -224,10 +224,7 @@ output of C<crypt(3)>.
 
 Cryptographic functionality depends greatly on your local glibc's B<crypt(3)>.
 Old Linux may not support sha*, many other platforms only support md5, or that
-and Blowfish.
-
-B<Crypt::Password> will die if it thinks your B<crypt(3)> is screwing things up
-too badly; you should run the tests in this distribution to get diagnostics.
+and Blowfish, etc.
 
 =head1 SUPPORT, SOURCE
 
