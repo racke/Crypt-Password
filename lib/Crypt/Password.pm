@@ -123,7 +123,7 @@ sub _invent_salt {
 sub _looks_crypted {
     my $self = shift;
     my $string = shift;
-    $string && $string =~ m{^\$\d+\$.*\$.+$}
+    $string && $string =~ m{^\$.+\$.*\$.+$}
 }
 
 sub _default_algorithm {
