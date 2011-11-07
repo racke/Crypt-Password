@@ -2,7 +2,6 @@
 use strict;
 use warnings;
 use Test::More 'no_plan';
-use v5.10;
 
 use FindBin '$Bin';
 use lib "$Bin/../lib";
@@ -38,11 +37,11 @@ sub mock { bless {@_}, "Crypt::Password" };
     diag "generate salt";
     my $c = mock;
     my $salt_1 = $c->salt;
-    ok $salt_1 =~ /^\S{8}$/, "salt generated";
+    like $salt_1, qr/^\S{8}$/, "salt generated";
     $c = mock;
     my $salt_2 = $c->salt;
-    ok $salt_1 =~ /^\S{8}$/, "salt generated";
-    ok $salt_1 ne $salt_2, "generated salts are different";
+    like $salt_1, qr/^\S{8}$/, "salt generated";
+    isnt $salt_1, $salt_2, "generated salts are different";
     
     is $c->salt("4fatness"), "4fatness", "salt set, returned";
     is $c->{salt}, "4fatness", "salt set, returned";
@@ -52,11 +51,11 @@ sub mock { bless {@_}, "Crypt::Password" };
     diag "crypt some text";
     
     my $c = password("hello0");
-    ok $c =~ /^\$5\$(........)\$...........+$/, "crypted";
+    like $c, qr/^\$5\$(........)\$...........+$/, "crypted";
     
     my $c2 = password("hello0");
-    ok $c2 =~ /^\$5\$(........)\$...........+$/, "another crypted";
-    ok $c ne $c2, "generated different salts";
+    like $c2, qr/^\$5\$(........)\$...........+$/, "another crypted";
+    isnt $c, $c2, "generated different salts";
     ok $c->check("hello0"), "validates";
     ok !$c->check("hello1"), "invalidates";
 }
@@ -65,19 +64,20 @@ sub mock { bless {@_}, "Crypt::Password" };
     diag "documented stuff";
     {
         my $hashed = password("password", "salt");
-        ok $hashed =~ /^\$5\$salt\$.{43}$/, "Default algorithm, supplied salt";
+        like $hashed, qr/^\$5\$salt\$.{43}$/, "Default algorithm, supplied salt";
     }
 
     {
         my $hashed = password("password", "", "md5");
-        ok $hashed =~ /^\$1\$\$.{22}$/, "md5, no salt";
+        like $hashed, qr/^\$1\$\$.{22}$/, "md5, no salt";
     }
 
     {
         my $hashed = password("password", undef, "sha512");
-        ok $hashed =~ /^\$6\$(.{8})\$.{86}$/, "sha512, invented salt";
+        like $hashed, qr/^\$6\$(.{8})\$.{86}$/, "sha512, invented salt";
     }
 }
+
 
 diag `man crypt`;
 
