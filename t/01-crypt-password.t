@@ -92,7 +92,8 @@ sub mock { bless {@_}, "Crypt::Password" };
     diag password("password", "a2222salt");
     diag password("password", "_2222salt");
     diag password("password", "_2222sult");
-
-diag `man crypt`;
+    diag "on $^O";
+    diag `man crypt`;
+}
 
 1;
