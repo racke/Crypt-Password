@@ -78,6 +78,20 @@ sub mock { bless {@_}, "Crypt::Password" };
     }
 }
 
+{
+    diag "experiments";
+    diag password("password", "salt");
+    diag password("password", "sal");
+    diag password("password", "sa");
+    diag password("password", "s");
+    diag password("password", "");
+    diag password("password", "_3333salt");
+    diag password("password", "_2222salt");
+    diag password("password", "_2222salt");
+    diag password("password", "a2222salt");
+    diag password("password", "a2222salt");
+    diag password("password", "_2222salt");
+    diag password("password", "_2222sult");
 
 diag `man crypt`;
 
