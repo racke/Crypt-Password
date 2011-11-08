@@ -19,10 +19,7 @@ our %alg_to_id = (
 );
 our %id_to_alg = reverse %alg_to_id;
 
-our $glib = do {
-    system "man -f glib > /dev/null";
-    $? == 0;
-};
+our $glib = (`man crypt`)[-1] !~ /FreeSec/;
 
 sub new {
     shift;
