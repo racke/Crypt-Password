@@ -135,7 +135,9 @@ sub check {
     my $self = shift;
     my $plaintext = shift;
     
-    CORE::crypt($plaintext, $self) eq "$self";
+    my $new = CORE::crypt($plaintext, $self->salt);
+    carp "checking: $new\nagainst:  $self";
+    $new eq $self;
 }
 
 our @valid_salt = ( "/", ".", "a".."z", "A".."Z", "0".."9" );
@@ -153,7 +155,7 @@ sub _looks_crypted {
         }
         else {
             # TODO
-            $string =~ /^(_.{5-7}|..).{11}$/
+            $string =~ /^(_.{5,}|..).{11}$/
         }
     }
 }

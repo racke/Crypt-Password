@@ -76,18 +76,24 @@ else {
     my $c = password("hello0");
     diag "non-glib password: $c";
 
-    like $c, qr/^_.{8}.{11}$/, "salt comes out in semi-understandable format";
+    like $c, qr/^_.{8}.{11}$/, "salt comes out in understandable format";
     
     ok($c->check("hello0"), "check the correct password");
     ok(!$c->check("helow"), "check the wrong password");
-    is($c, password("hello0"), "check a new password");
-    is($c, password("hello0", "DF"), "password with different salt? TODO");
-    is($c, password("hello0", "_aa"), "password with different salt? TODO");
-    diag "Yeah:\n".join("\n", password("hello0"),
-    password("hello0", "DF"),
-    password("hello0", "_aa"),
-    $c);
+    isnt($c, password("hello0", "garble"), "compare a password - wrong salt");
+    isnt($c, password("hello0", "DF"), "compare a password - wrong salt");
+    isnt($c, password("hello0", "_aa"), "compare a password - wrong salt");
+    is($c, password("hello0", $c->salt), "compare a password - correct salt");
+    isnt(password("007", "blah"), password("007", "BLAH"), "compare a password - wrong salt");
+    is(my $c2 = password("123", "123"), password("123", "123"), "compare a password - correct salt");
+    ok($c2->check("123"), "check the correct password");
+    my $c2_string = "$c2";
+    ok(my $c2_2 = password($c2_string)->check("123"), "stringified and back, check correct");
+    ok(!password($c2_string)->check("23"), "stringified and back, check incorrect");
+    ok($c2_2->check("123"), "123 good");
+    is($c2_2->salt, "123", "can extract the salt");
 }
+
 if ($glib) {
     diag "documented stuff";
     {
@@ -132,7 +138,7 @@ if ($glib) {
     diag password("password", "");
     diag password("password", "_3333salt");
     diag password("password", "_2222salt");
-    diag password("password", "_2222salt");
+    diag password("password", "_2222salt123456789abcdefghijklmnop");
     diag password("password", "a2222salt");
     diag password("password", "a2222salt");
     diag password("password", "_2222salt");
