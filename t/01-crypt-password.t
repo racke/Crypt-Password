@@ -110,13 +110,14 @@ if ($glib) {
     *Crypt::Password::nothing = sub {
         diag "not _looks_crypted(): $_[0]"
             unless Crypt::Password->_looks_crypted($_[0]);
+        local *Crypt::Password::nothing = sub {};
         my $p = password($_[0]);
         $_[2] =~ s/^_//;
         diag "not the same salt: $_[2] vs ".$p->salt
             unless $p->salt eq $_[2];
         diag "different hash: $_[0] vs $p"
             unless $p eq $_[0];
-        diag "doesn't validate: $p $_[1]";
+        diag "doesn't validate: $p $_[1]"
             unless $p->check($_[1]);
     };
     diag "experiments";

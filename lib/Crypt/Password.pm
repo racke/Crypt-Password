@@ -76,7 +76,6 @@ sub salt {
                     ||
                         /^(..).{11}$/;
                     $_ = $1 || carp "Failed to match: $_";
-                    s/\.+$//; # remove padding
                     return $_;
                 }
             }
