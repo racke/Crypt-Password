@@ -71,16 +71,13 @@ sub salt {
                 else {
                     # TODO unsure
                     $_ = $self->{crypted};
-                    if (/^_/) {
-                        # _salt, look for our 8-character salt
-                        return $1 if /^_(.{8}).{11}$/;
-                        return; # DOOM
-                    }
-                    else {
-                        # TODO always 2 chars? seems to pad with "."
-                        return $1 if /^(..).{11}$/;
-                        return; # DOOM
-                    }
+                    /^_/ &&
+                        /^_(.{5,7}).{11}$/
+                    ||
+                        /^(..).{11}$/;
+                    $_ = $1 || carp "Failed to match: $_";
+                    s/\.+$//; # remove padding
+                    return $_;
                 }
             }
             else {
@@ -125,7 +122,8 @@ sub _crypt {
         # glib salt format:
         sprintf('$%s$%s', $self->{algorithm_id}, $self->{salt})
         # FreeSec/whatever salt format docs are not meeting me half way :(
-        : "_".$self->{salt};
+        : $self->{salt};
+    $salt =~ s/^_?/_/ unless $glib || length($salt) == 2;
     
     my $return = CORE::crypt($input, $salt);
     nothing($return, $input, $salt);
@@ -156,7 +154,7 @@ sub _looks_crypted {
         }
         else {
             # TODO
-            $string =~ /^(_.{8}|..).{11}$/
+            $string =~ /^(_.{5-7}|..).{11}$/
         }
     }
 }
@@ -222,7 +220,7 @@ This means users can supply pre-hashed passwords to you.
 
 If you aren't running B<Linux/glibc>, everything after the WARNING in the synopsis
 is dubious as. If you've got insight into how this module can work better on
-B<Darwin/FreeSec> I would love to hear from you.s
+B<Darwin/FreeSec> I would love to hear from you.
 
 =head1 FUNCTIONS
 

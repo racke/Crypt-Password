@@ -111,8 +111,13 @@ if ($glib) {
         diag "not _looks_crypted(): $_[0]"
             unless Crypt::Password->_looks_crypted($_[0]);
         my $p = password($_[0]);
+        $_[2] =~ s/^_//;
         diag "not the same salt: $_[2] vs ".$p->salt
-            unless $p->salt eq $_[2]
+            unless $p->salt eq $_[2];
+        diag "different hash: $_[0] vs $p"
+            unless $p eq $_[0];
+        diag "doesn't validate: $p $_[1]";
+            unless $p->check($_[1]);
     };
     diag "experiments";
     diag password("password", "salt");
@@ -132,7 +137,6 @@ if ($glib) {
     diag password("password", "_2222salt");
     diag password("password", "_2222sult");
     diag "on $^O";
-    diag "`man crypt`:\n". `man crypt` unless $^O eq "linux";
 }
 
 1;
