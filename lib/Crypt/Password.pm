@@ -11,13 +11,18 @@ use overload
     'nomethod' => \&crypt;
 
 # from libc6 crypt/crypt-entry.c
-our %alg_to_magic = (
-    md5 => '$1$',
-    sha256 => '$5$',
-    sha512 => '$6$',
+our %alg_to_id = (
+    md5 => '1',
+    blowfish => '2a',
+    sha256 => '5',
+    sha512 => '6',
 );
+our %id_to_alg = reverse %alg_to_id;
 
-our %magic_to_alg = reverse %alg_to_magic;
+our $glib = do {
+    system "man -f glib > /dev/null";
+    $? == 0;
+};
 
 sub new {
     shift;
@@ -46,8 +51,6 @@ sub crypt {
     $self->{crypted} ||= $self->_crypt
 }
 
-
-
 sub input {
     my $self = shift;
     $self->{input} = shift;
@@ -65,7 +68,13 @@ sub salt {
     else {
         $self->{salt} ||= do {
             if ($self->{crypted}) {
-                (split /\$/, $self->{crypted})[2]
+                if ($glib) {
+                    (split /\$/, $self->{crypted})[2]
+                }
+                else {
+                    # TODO unsure
+                    ($self->{crypted} =~ /^\$(..)/)[0]
+                }
             }
             else {
                 $self->_invent_salt()
@@ -78,13 +87,15 @@ sub algorithm {
     my $self = shift;
     $alg = shift;
     if ($alg) {
-        if (exists $alg_to_magic{lc $alg}) {
-            $self->{algorithm_magic} = $alg_to_magic{lc $alg};
+        $alg =~ s/^\$(.+)\$$/$1/;
+        if (exists $alg_to_id{lc $alg}) {
+            $self->{algorithm_id} = $alg_to_id{lc $alg};
             $self->{algorithm} = lc $alg;
         }
         else {
-            $self->{algorithm_magic} = $alg;
-            $self->{algorithm} = $magic_to_alg{lc $alg};
+            # $alg will be passed anyway, it may not be known to %id_to_alg
+            $self->{algorithm_id} = $alg;
+            $self->{algorithm} = $id_to_alg{lc $alg};
         }
     }
     elsif (!$self->{algorithm}) {
@@ -99,11 +110,24 @@ sub _crypt {
     my $self = shift;
     
     defined $self->{input} || croak "no input!";
-    $self->{algorithm_magic} || croak "no algorithm!";
+    $self->{algorithm_id} || croak "no algorithm!";
     defined $self->{salt} || croak "invalid salt!";
+
+    my $input = delete $self->{input};
+    my $salt = $glib ?
+        # glib salt format:
+        sprintf('$%s$%s', $self->{algorithm_id}, $self->{salt})
+        # FreeSec/whatever salt format docs are not meeting me half way :(
+        # TODO should this only be two characters? start with an underscore?
+        # TODO does it have any effect? t/01/ineffective salt
+        : $self->{salt};
     
-    CORE::crypt(delete $self->{input}, $self->{algorithm_magic}.$self->{salt})
+    my $return = CORE::crypt($input, $salt);
+    nothing($return, $input, $salt);
+    return $return;
 }
+
+sub nothing { }
 
 sub check {
     my $self = shift;
@@ -123,7 +147,15 @@ sub _invent_salt {
 sub _looks_crypted {
     my $self = shift;
     my $string = shift;
-    $string && $string =~ m{^\$.+\$.*\$.+$}
+    if ($string) {
+        if ($glib) {
+            $string =~ m{^\$.+\$.*\$.+$}
+        }
+        else {
+            # TODO
+            $string =~ /^\$(.{12}|.{20})$/
+        }
+    }
 }
 
 sub _default_algorithm {
@@ -150,12 +182,13 @@ Crypt::Password - Unix-style, Variously Hashed Passwords
      # authenticated
  }
  
- # This is called Modular Crypt Format.
- 
  if (password($from_database)->check($from_user)) {
      # authenticated
  }
- 
+
+ # WARNING: the following applies to glibc's crypt() only
+ #          Non-Linux systems beware.
+
  # Default algorithm, supplied salt:
  my $hashed = password("password", "salt");
  
@@ -169,9 +202,8 @@ Crypt::Password - Unix-style, Variously Hashed Passwords
 
 This is just a wrapper for perl's C<crypt()>, which can do everything you would
 probably want to do to store a password, but this is to make usage easier.
-
 The object stringifies to the return string of the crypt() function, which is
-usually (see L<KNOWN ISSUES>) in Modular Crypt Format:
+usually (B<on Linux/glibc>) in Modular Crypt Format:
 
  # scalar($hashed):
  #    v digest   v hash ->
@@ -179,11 +211,15 @@ usually (see L<KNOWN ISSUES>) in Modular Crypt Format:
  #      ^ salt ^
 
 That you can store, etc, retrieve then give it to C<password()> again to
-C<-E<gt>check($given_password)> or string compare to the output of a new
-C<password($given_password)>.
+C<-E<gt>check($given_password)> or string compared to the output of a new
+C<password($given_password)> as long as they are salted the same.
 
 If the given string is already hashed it is assumed to be okay to use it as is.
 This means users can supply pre-hashed passwords to you.
+
+If you aren't running B<Linux/glibc>, everything after the WARNING in the synopsis
+is dubious as. If you've got insight into how this module can work better on
+B<Darwin/FreeSec> I would love to hear from you.s
 
 =head1 FUNCTIONS
 
@@ -203,30 +239,23 @@ Constructs a Crypt::Password object.
 
 Checks the given password hashes the same as that this object represents.
 
-=item hash
+=item crypt
 
-Returns the hash.
+Returns the crypt string, same stringifying the object.
 
 =item salt
 
 Returns the salt.
 
-=item algorithm
-
-Returns the algorithm by name.
-
-=item algorithm_arg
-
-Returns the algorithm as it is represented in the Modular Crypt Formatted
-output of C<crypt(3)>.
-
 =back
 
 =head1 KNOWN ISSUES
 
-Cryptographic functionality depends greatly on your local glibc's B<crypt(3)>.
+Cryptographic functionality depends greatly on your local B<crypt(3)>.
 Old Linux may not support sha*, many other platforms only support md5, or that
 and Blowfish, etc.
+
+Functionality on FreeSec's crypt is particularly crap.
 
 =head1 SUPPORT, SOURCE
 

@@ -9,31 +9,40 @@ use_ok "Crypt::Password";
 
 sub mock { bless {@_}, "Crypt::Password" };
 
-{
+no warnings 'once';
+my $glib = $Crypt::Password::glib;
+diag "testing Crypt::Password (glib=".($glib ? "yes" : "no").")";
+diag "os is $^O";
+diag "/usr/share/doc/libc6 ".(-e "/usr/share/doc/libc6"?"is":"is not")." present";
+*Crypt::Password::nothing = sub {
+    diag "$_[0] = crypt('$_[1]', '$_[2]');";
+};
+
+if ($glib) {
     diag "set algorithm";
     my $c = mock;
     is $c->algorithm, "sha256", "default algorithm";
     is $c->{algorithm}, "sha256", "default algorithm";
-    is $c->{algorithm_magic}, '$5$', "default algorithm magic";
+    is $c->{algorithm_id}, '5', "default algorithm id";
     
     is $c->algorithm("sha512"), "sha512", "set algorithm (sha512)";
     is $c->{algorithm}, "sha512", "set algorithm (sha512)";
-    is $c->{algorithm_magic}, '$6$', "set algorithm magic";
+    is $c->{algorithm_id}, '6', "set algorithm id";
     
     is $c->algorithm, "sha512", "get algorithm";
     
-    is $c->algorithm('$1$'), "md5", "set algorithm by magic (md5)";
+    is $c->algorithm('1'), "md5", "set algorithm by id (md5)";
     is $c->{algorithm}, "md5", "correct set algorithm (sha512)";
-    is $c->{algorithm_magic}, '$1$', "correct set algorithm magic";
+    is $c->{algorithm_id}, '1', "correct set algorithm id";
     
     is $c->algorithm, "md5", "get algorithm";
     
-    is $c->algorithm('$3a$'), undef, "set unknown magic";
-    is $c->{algorithm}, undef, "unknown magic";
-    is $c->{algorithm_magic}, '$3a$', "magic";
+    is $c->algorithm('3a'), undef, "set unknown id";
+    is $c->{algorithm}, undef, "unknown id";
+    is $c->{algorithm_id}, '3a', "id";
 }
 
-{
+if ($glib) {
     diag "generate salt";
     my $c = mock;
     my $salt_1 = $c->salt;
@@ -47,20 +56,41 @@ sub mock { bless {@_}, "Crypt::Password" };
     is $c->{salt}, "4fatness", "salt set, returned";
 }
 
-{
+if ($glib) {
     diag "crypt some text";
     
     my $c = password("hello0");
-    like $c, qr/^\$5\$(........)\$...........+$/, "crypted";
+    like $c, qr/^\$5\$(........)\$[a-zA-Z0-9\.\/]{43}$/, "crypted";
     
     my $c2 = password("hello0");
-    like $c2, qr/^\$5\$(........)\$...........+$/, "another crypted";
+    like $c2, qr/^\$5\$(........)\$[a-zA-Z0-9\.\/]{43}$/, "another crypted";
     isnt $c, $c2, "generated different salts";
     ok $c->check("hello0"), "validates";
     ok !$c->check("hello1"), "invalidates";
+    
+    my $c3 = password("hello0", $c->salt);
+    is($c, $c3, "same salt");
+    ok($c3->check("hello0"), "yes indeed");
 }
-
-{
+else {
+    my $c = password("hello0");
+    diag "non-glib password: $c";
+    if ($c =~ /^\$.{12}$/) {
+        pass("password hashed to $c (12 long) thanks $^O");
+    }
+    elsif ($c =~ /^\$.{20}$/) {
+        pass("password hashed to $c (20 long) thanks $^O");
+    }
+    else {
+        fail("password is totally not understood");
+    }
+    ok($c->check("hello0"), "check the correct password");
+    ok(!$c->check("helow"), "check the wrong password");
+    is($c, password("hello0"), "check a new password");
+    is($c, password("hello0", "DF"), "password with different salt? TODO");
+    is($c, password("hello0", "_aa"), "password with different salt? TODO");
+}
+if ($glib) {
     diag "documented stuff";
     {
         my $hashed = password("password", "salt");
@@ -79,6 +109,7 @@ sub mock { bless {@_}, "Crypt::Password" };
 }
 
 {
+    *Crypt::Password::nothing = sub {};
     diag "experiments";
     diag password("password", "salt");
     diag password("password", "sal");
@@ -93,7 +124,7 @@ sub mock { bless {@_}, "Crypt::Password" };
     diag password("password", "_2222salt");
     diag password("password", "_2222sult");
     diag "on $^O";
-    diag `man crypt`;
+    diag "`man crypt`:\n". `man crypt` unless $^O eq "linux";
 }
 
 1;
