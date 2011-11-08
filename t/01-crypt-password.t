@@ -9,7 +9,7 @@ use_ok "Crypt::Password";
 
 sub mock { bless {@_}, "Crypt::Password" };
 
-no warnings 'once';
+no warnings 'once', 'redefine';
 my $glib = $Crypt::Password::glib;
 diag "testing Crypt::Password (glib=".($glib ? "yes" : "no").")";
 diag "os is $^O";
@@ -75,15 +75,9 @@ if ($glib) {
 else {
     my $c = password("hello0");
     diag "non-glib password: $c";
-    if ($c =~ /^\$.{12}$/) {
-        pass("password hashed to $c (12 long) thanks $^O");
-    }
-    elsif ($c =~ /^\$.{20}$/) {
-        pass("password hashed to $c (20 long) thanks $^O");
-    }
-    else {
-        fail("password is totally not understood");
-    }
+
+    like $c, qr/^_.{8}.{11}$/, "salt comes out in semi-understandable format";
+    
     ok($c->check("hello0"), "check the correct password");
     ok(!$c->check("helow"), "check the wrong password");
     is($c, password("hello0"), "check a new password");
@@ -109,12 +103,22 @@ if ($glib) {
 }
 
 {
-    *Crypt::Password::nothing = sub {};
+    *Crypt::Password::nothing = sub {
+        diag "not _looks_crypted(): $_[0]"
+            unless Crypt::Password->_looks_crypted($_[0]);
+        my $p = password($_[0]);
+        diag "not the same salt: $_[2] vs ".$p->salt
+            unless $p->salt eq $_[2]
+    };
     diag "experiments";
     diag password("password", "salt");
     diag password("password", "sal");
     diag password("password", "sa");
     diag password("password", "s");
+    diag password("password", "s");
+    diag password("password", "a");
+    diag password("password", "a");
+    diag password("passwod", "a");
     diag password("password", "");
     diag password("password", "_3333salt");
     diag password("password", "_2222salt");

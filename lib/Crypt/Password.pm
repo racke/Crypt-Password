@@ -70,7 +70,17 @@ sub salt {
                 }
                 else {
                     # TODO unsure
-                    ($self->{crypted} =~ /^\$(..)/)[0]
+                    $_ = $self->{crypted};
+                    if (/^_/) {
+                        # _salt, look for our 8-character salt
+                        return $1 if /^_(.{8}).{11}$/;
+                        return; # DOOM
+                    }
+                    else {
+                        # TODO always 2 chars? seems to pad with "."
+                        return $1 if /^(..).{11}$/;
+                        return; # DOOM
+                    }
                 }
             }
             else {
@@ -115,9 +125,7 @@ sub _crypt {
         # glib salt format:
         sprintf('$%s$%s', $self->{algorithm_id}, $self->{salt})
         # FreeSec/whatever salt format docs are not meeting me half way :(
-        # TODO should this only be two characters? start with an underscore?
-        # TODO does it have any effect? t/01/ineffective salt
-        : $self->{salt};
+        : "_".$self->{salt};
     
     my $return = CORE::crypt($input, $salt);
     nothing($return, $input, $salt);
@@ -133,9 +141,7 @@ sub check {
     CORE::crypt($plaintext, $self) eq "$self";
 }
 
-
-
-our @valid_salt = ( "a".."z", "A".."Z", "0".."9", qw(/ \ ! @ % ^), "#" );
+our @valid_salt = ( "/", ".", "a".."z", "A".."Z", "0".."9" );
 
 sub _invent_salt {
     join "", map { $valid_salt[rand(@valid_salt)] } 1..8;
@@ -150,7 +156,7 @@ sub _looks_crypted {
         }
         else {
             # TODO
-            $string =~ /^\$(.{12}|.{20})$/
+            $string =~ /^(_.{8}|..).{11}$/
         }
     }
 }
