@@ -83,6 +83,10 @@ else {
     is($c, password("hello0"), "check a new password");
     is($c, password("hello0", "DF"), "password with different salt? TODO");
     is($c, password("hello0", "_aa"), "password with different salt? TODO");
+    diag "Yeah:\n".join("\n", password("hello0"),
+    password("hello0", "DF"),
+    password("hello0", "_aa"),
+    $c);
 }
 if ($glib) {
     diag "documented stuff";
