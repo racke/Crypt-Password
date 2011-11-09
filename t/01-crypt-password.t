@@ -84,13 +84,15 @@ else {
     isnt($c, password("hello0", "DF"), "compare a password - wrong salt");
     isnt($c, password("hello0", "_aa"), "compare a password - wrong salt");
     is($c, password("hello0", $c->salt), "compare a password - correct salt");
+    
     isnt(password("007", "blah"), password("007", "BLAH"), "compare a password - wrong salt");
     is(my $c2 = password("123", "123"), password("123", "123"), "compare a password - correct salt");
     ok($c2->check("123"), "check the correct password");
-    my $c2_string = "$c2";
-    ok(my $c2_2 = password($c2_string)->check("123"), "stringified and back, check correct");
-    ok(!password($c2_string)->check("23"), "stringified and back, check incorrect");
-    ok($c2_2->check("123"), "123 good");
+
+    my $c2_2 = password("$c2");
+    ok($c2_2->check("123"), "stringified and back, check correct");
+    ok(!$c2_2->check("23"), "stringified and back, check incorrect");
+    ok($c2->check("123"), "123 still good");
     is($c2_2->salt, "123", "can extract the salt");
 }
 
