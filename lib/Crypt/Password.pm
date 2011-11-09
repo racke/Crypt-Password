@@ -72,11 +72,11 @@ sub salt {
                     # TODO unsure
                     $_ = $self->{crypted};
                     /^_/ &&
-                        /^_(.{5,7}).{11}$/
+                        /^_(.{5,}).{11}$/
                     ||
                         /^(..).{11}$/;
                     $_ = $1 || carp "Failed to match: $_";
-                    return $_;
+                    $_
                 }
             }
             else {
@@ -117,13 +117,8 @@ sub _crypt {
     defined $self->{salt} || croak "invalid salt!";
 
     my $input = delete $self->{input};
-    my $salt = $glib ?
-        # glib salt format:
-        sprintf('$%s$%s', $self->{algorithm_id}, $self->{salt})
-        # FreeSec/whatever salt format docs are not meeting me half way :(
-        : $self->{salt};
-    $salt =~ s/^_?/_/ unless $glib || length($salt) == 2;
-    
+    my $salt = $self->_form_salt();
+
     my $return = CORE::crypt($input, $salt);
     nothing($return, $input, $salt);
     return $return;
@@ -135,9 +130,24 @@ sub check {
     my $self = shift;
     my $plaintext = shift;
     
-    my $new = CORE::crypt($plaintext, $self->salt);
-    carp "checking: $new\nagainst:  $self";
+    my $new = CORE::crypt($plaintext, $self->_form_salt);
+    carp "\n\nchecking: $new\nagainst:  $self\n";
     $new eq $self;
+}
+
+sub _form_salt {
+    my $self = shift;
+    my $s = $self->{salt};
+    croak "undef salt!?" unless defined $s;
+    if ($glib) {
+        # glib
+        $s = sprintf('$%s$%s', $self->{algorithm_id}, $s);
+    }
+    else {
+        # FreeSec
+        $s = "_$s" unless length($s) == 2 || length($s) == 0;
+    }
+    return $s;
 }
 
 our @valid_salt = ( "/", ".", "a".."z", "A".."Z", "0".."9" );
