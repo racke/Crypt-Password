@@ -106,7 +106,7 @@ else {
     ok(password("aa", "bbbbbbbb")->check("aa"), "-b");
     ok(password("aa", "bbbbbbbbb")->check("aa"), "-b");
 
-    for my $s ("bbb", "ggggg", "666666") {
+    for my $s ("bbb", "ggggg", "666666", "44444444") {
         say "salt: $salt";
         my %uniq;
         for (1..50) {
