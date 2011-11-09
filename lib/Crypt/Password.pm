@@ -140,12 +140,15 @@ sub check {
    
     my $salt = $self->_form_salt();
     carp "check: $plaintext $salt";
-    my $new = CORE::crypt($plaintext, $self->_form_salt);
+    ord($salt);
+    my $new = CORE::crypt($plaintext, $salt);
     carp "\n\nchecking: $new\nagainst:  $self\n";
-    for ($new, "$self") {
-        say "orded: ". join ",", map {ord} (split //)[0-6];
-    }
+    ord($new);
+    ord($self);
     return $new eq "$self";
+}
+sub ord {
+    say "orded: ". join ",", map {ord} (split //, $_[0])[0-8];
 }
 
 sub _form_salt {

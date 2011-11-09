@@ -106,6 +106,20 @@ else {
     ok(password("aa", "bbbbbbbb")->check("aa"), "-b");
     ok(password("aa", "bbbbbbbbb")->check("aa"), "-b");
 
+    for my $s ("bbb", "ggggg", "666666") {
+        say "salt: $salt";
+        my %uniq;
+        for (1..50) {
+            my $p = password("a", "bbb");
+            $uniq{"$p"}++;
+        }
+        if (keys %uniq > 1) {
+            use YAML::Syck;
+            say (keys %uniq)." keys!";
+            say Dump(\%uniq);
+        }
+    }
+
     my $c2_2 = password("$c2");
     is($c2, $c2_2, "stringified and back");
     ok($c2_2->check("123"), "stringified and back, check correct");
