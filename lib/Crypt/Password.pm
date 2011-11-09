@@ -1,6 +1,6 @@
 package Crypt::Password;
 use Exporter 'import';
-@EXPORT = ('password');
+@EXPORT = ('password', 'crypt_password');
 our $VERSION = "0.05";
 
 use Carp;
@@ -21,9 +21,16 @@ our %id_to_alg = reverse %alg_to_id;
 
 our $glib = (`man crypt`)[-1] !~ /FreeSec/;
 
+our $definitely_crypt;
+
 sub new {
     shift;
     password(@_);
+}
+
+sub crypt_password {
+    local $definitely_crypt = 1;
+    return password(@_);
 }
 
 sub password {
@@ -51,7 +58,7 @@ sub crypt {
 sub input {
     my $self = shift;
     $self->{input} = shift;
-    if ($self->_looks_crypted($self->{input})) {
+    if (!$definitely_crypt && $self->_looks_crypted($self->{input})) {
         $self->{crypted} = delete $self->{input}
     }
 }
@@ -75,8 +82,7 @@ sub salt {
                         /^_(.{5,}).{11}$/
                     ||
                         /^(..).{11}$/;
-                    $_ = $1 || carp "Failed to match: $_";
-                    $_
+                    $1 || carp "Failed to match: $_";
                 }
             }
             else {
@@ -173,7 +179,7 @@ sub _looks_crypted {
             $string =~ m{^\$.+\$.*\$.+$}
         }
         else {
-            # TODO
+            # TODO string length = 13? bah
             $string =~ /^(_.{5,}|..).{11}$/
         }
     }
@@ -195,17 +201,22 @@ Crypt::Password - Unix-style, Variously Hashed Passwords
 
  use Crypt::Password;
  
- my $hashed = password("password");
+ my $hashed = password("newpassword");
  
  $user->set_password($hashed);
  
- if ($user->get_password eq password($from_client)) {
+ if (password($from_database)->check($password_from_user)) {
      # authenticated
  }
- 
- if (password($from_database)->check($from_user)) {
-     # authenticated
- }
+
+ my $definitely_crypted_just_then = crypt_password($maybe_already_crypted);
+
+ # you also might want to
+ password($a) eq password($b)
+ # WARNING: password() will embody but not crypt an already crypted string
+ #          if you are checking something from the outside world, use check()
+
+ # imagine stealing a crypted string and using it as a password. it happens.
 
  # WARNING: the following applies to glibc's crypt() only
  #          Non-Linux systems beware.
@@ -224,7 +235,7 @@ Crypt::Password - Unix-style, Variously Hashed Passwords
 This is just a wrapper for perl's C<crypt()>, which can do everything you would
 probably want to do to store a password, but this is to make usage easier.
 The object stringifies to the return string of the crypt() function, which is
-usually (B<on Linux/glibc>) in Modular Crypt Format:
+(B<on Linux/glibc>) in Modular Crypt Format:
 
  # scalar($hashed):
  #    v digest   v hash ->
@@ -232,11 +243,20 @@ usually (B<on Linux/glibc>) in Modular Crypt Format:
  #      ^ salt ^
 
 That you can store, etc, retrieve then give it to C<password()> again to
-C<-E<gt>check($given_password)> or string compared to the output of a new
-C<password($given_password)> as long as they are salted the same.
+C<-E<gt>check($given_password)>.
+
+Not without some danger, so read on, you could also string compare it to the
+output of another C<password()>, as long as the salt is the same. Actually, if
+you are running on B<Linux/glibc> you can pass the first password as the salt
+to the second and it will get it right. Anyway, the danger:
 
 If the given string is already hashed it is assumed to be okay to use it as is.
-This means users can supply pre-hashed passwords to you.
+So if you are checking something from the outside world, C<-E<gt>check($it)>
+against the thing you can trust. You could also use C<crypt_password()>, which
+will definitely crypt its input.
+
+This means simpler code and users can supply pre-hashed passwords initially, but
+if you do it wrong a stolen hash could be used as a password, so buck up your ideas.
 
 If you aren't running B<Linux/glibc>, everything after the WARNING in the synopsis
 is dubious as. If you've got insight into how this module can work better on
@@ -249,6 +269,11 @@ B<Darwin/FreeSec> I would love to hear from you.
 =item password ( $password [, $salt [, $algorithm]] )
 
 Constructs a Crypt::Password object.
+
+=item crypt_password ( $password [, $salt [, $algorithm]] )
+
+Same as above but will definitely crypt $password, even if it looks crypted.
+See warning labels.
 
 =back
 
