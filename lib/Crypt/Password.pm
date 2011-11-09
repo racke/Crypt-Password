@@ -35,6 +35,8 @@ sub crypt_password {
 
 sub password {
     my $self = bless {}, __PACKAGE__;
+
+    carp "Got args: @_\n";
     
     $self->input(shift);
     
@@ -135,13 +137,14 @@ sub nothing { }
 sub check {
     my $self = shift;
     my $plaintext = shift;
-    
+   
+    carp "formed salt: ".$self->_form_salt;
     my $new = CORE::crypt($plaintext, $self->_form_salt);
     carp "\n\nchecking: $new\nagainst:  $self\n";
     carp "?: ". ($new eq $self ? 1 : 0 );
     carp '"": '. ("$new" eq "$self");
     carp ": ". ($new eq $self);
-    return $new eq $self;
+    return $new eq "$self";
 }
 
 sub _form_salt {

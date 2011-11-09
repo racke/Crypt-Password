@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
+use v5.10;
 use Test::More 'no_plan';
 
 use FindBin '$Bin';
@@ -90,10 +91,12 @@ else {
     ok($c2->check("123"), "check the correct password");
 
     my $c2_2 = password("$c2");
+    is($c2, $c2_2, "stringified and back");
     ok($c2_2->check("123"), "stringified and back, check correct");
     ok(!$c2_2->check("23"), "stringified and back, check incorrect");
     ok($c2->check("123"), "123 still good");
     is($c2_2->salt, "123", "can extract the salt");
+    ok(!password("$c2")->check("_123123"), "stolen password recrypted");
 }
 
 if ($glib) {
@@ -112,6 +115,12 @@ if ($glib) {
         my $hashed = password("password", undef, "sha512");
         like $hashed, qr/^\$6\$(.{8})\$.{86}$/, "sha512, invented salt";
     }
+
+    {
+        my $password = '$5$%RK2BU%L$aFZd1/4Gpko/sJZ8Oh.ZHg9UvxCjkH1YYoLZI6tw7K8';
+        is $password, password($password), "password embodied by password()";
+        isnt $password, crypt_password($password), "password recrypted by crypt_password()";
+    }
 }
 
 {
@@ -119,14 +128,18 @@ if ($glib) {
         diag "not _looks_crypted(): $_[0]"
             unless Crypt::Password->_looks_crypted($_[0]);
         local *Crypt::Password::nothing = sub {};
+        say "$_[0]";
         my $p = password($_[0]);
+        say "$p";
         $_[2] =~ s/^_//;
+        $_[2] =~ s/^\$.*\$//;
         diag "not the same salt: $_[2] vs ".$p->salt
             unless $p->salt eq $_[2];
         diag "different hash: $_[0] vs $p"
             unless $p eq $_[0];
         diag "doesn't validate: $p $_[1]"
             unless $p->check($_[1]);
+        diag "validone\n\n\n\n";
     };
     diag "experiments";
     diag password("password", "salt");
@@ -145,6 +158,9 @@ if ($glib) {
     diag password("password", "a2222salt");
     diag password("password", "_2222salt");
     diag password("password", "_2222sult");
+
+    carp "formed salt: ".$self->_form_salt;
+
     diag "on $^O";
 }
 
