@@ -120,6 +120,12 @@ if ($glib) {
         my $password = '$5$%RK2BU%L$aFZd1/4Gpko/sJZ8Oh.ZHg9UvxCjkH1YYoLZI6tw7K8';
         is $password, password($password), "password embodied by password()";
         isnt $password, crypt_password($password), "password recrypted by crypt_password()";
+
+        # lately insane
+        ok password($password) eq password($password), "comparison test";
+        my $p1 = password($password);
+        my $p2 = password($password);
+        ok $p1 eq $p2, "comparison test";
     }
 }
 
@@ -159,7 +165,10 @@ if ($glib) {
     diag password("password", "_2222salt");
     diag password("password", "_2222sult");
 
-    carp "formed salt: ".$self->_form_salt;
+    my $password = "blah";
+    my $p1 = password('_blah..?UN0esbtjX/Ww');
+    my $p2 = password('007', 'blah');
+    ok $p1 eq $p2, "comparison test";
 
     diag "on $^O";
 }
