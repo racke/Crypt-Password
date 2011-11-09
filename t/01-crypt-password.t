@@ -96,6 +96,16 @@ else {
     ok($cc->check("abcd"), "check correct");
     ok(!$cc->check("gbbbg"), "check incorrect");
 
+    ok(password("aa", "b")->check("aa"), "-b");
+    ok(password("aa", "bb")->check("aa"), "-b");
+    ok(password("aa", "bbb")->check("aa"), "-b");
+    ok(password("aa", "bbbb")->check("aa"), "-b");
+    ok(password("aa", "bbbbb")->check("aa"), "-b");
+    ok(password("aa", "bbbbbb")->check("aa"), "-b");
+    ok(password("aa", "bbbbbbb")->check("aa"), "-b");
+    ok(password("aa", "bbbbbbbb")->check("aa"), "-b");
+    ok(password("aa", "bbbbbbbbb")->check("aa"), "-b");
+
     my $c2_2 = password("$c2");
     is($c2, $c2_2, "stringified and back");
     ok($c2_2->check("123"), "stringified and back, check correct");
