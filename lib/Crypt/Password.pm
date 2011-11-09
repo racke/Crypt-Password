@@ -144,7 +144,13 @@ sub _form_salt {
     croak "undef salt!?" unless defined $s;
     if ($glib) {
         # glib
-        $s = sprintf('$%s$%s', $self->{algorithm_id}, $s);
+        if ($self->{algorithm_id}) {
+            $s = sprintf('$%s$%s', $self->{algorithm_id}, $s);
+        }
+        else {
+            # ->check(), alg and salt from ourselves
+            $s = "$self";
+        }
     }
     else {
         # FreeSec
