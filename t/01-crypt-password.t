@@ -90,6 +90,12 @@ else {
     is(my $c2 = password("123", "123"), password("123", "123"), "compare a password - correct salt");
     ok($c2->check("123"), "check the correct password");
 
+    diag "\n\n\n";
+    my $cc = password("abcd", "abcd");
+    diag "$cc";
+    ok($cc->check("abcd"), "check correct");
+    ok(!$cc->check("gbbbg"), "check incorrect");
+
     my $c2_2 = password("$c2");
     is($c2, $c2_2, "stringified and back");
     ok($c2_2->check("123"), "stringified and back, check correct");
