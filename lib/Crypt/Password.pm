@@ -138,7 +138,7 @@ sub check {
     my $self = shift;
     my $plaintext = shift;
    
-    carp "formed salt: ".$self->_form_salt;
+    carp "plaintext: $plaintext    salt: ".$self->_form_salt;
     my $new = CORE::crypt($plaintext, $self->_form_salt);
     carp "\n\nchecking: $new\nagainst:  $self\n";
     carp "?: ". ($new eq $self ? 1 : 0 );
