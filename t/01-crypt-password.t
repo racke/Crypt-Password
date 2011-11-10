@@ -1,7 +1,6 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
-use v5.10;
 use Test::More 'no_plan';
 
 use FindBin '$Bin';
@@ -14,10 +13,6 @@ no warnings 'once', 'redefine';
 my $glib = $Crypt::Password::glib;
 diag "testing Crypt::Password (glib=".($glib ? "yes" : "no").")";
 diag "os is $^O";
-diag "/usr/share/doc/libc6 ".(-e "/usr/share/doc/libc6"?"is":"is not")." present";
-*Crypt::Password::nothing = sub {
-    diag "$_[0] = crypt('$_[1]', '$_[2]');";
-};
 
 if ($glib) {
     diag "set algorithm";
@@ -75,31 +70,32 @@ if ($glib) {
 }
 else {
     my $c = password("hello0");
-    like $c, qr/^\$_\S{7}\$\S{11}$/, "crypted: looks good";
+    like $c, qr/^\$_\S{8}\$\S{11}$/, "crypted: looks good";
     like password("hello0", "dg"), qr/^\$..\$\S{11}$/, "crypted: 2char supplied salt";
 
     diag "various salt inputs";
     # all invalid
     for my $salt ("dgdb", "a", "123456", "12345678") {
         eval { password("hello0", $salt) };
-        like $@, qr/Bad salt input.+2 or 7 characters/, "wrong sized salt";
-        undef $@;
+        like $@, qr/Bad salt input.+2 or 8 characters/, "wrong sized salt";
+        $@ = "";
     }
     for my $salt ("_a", "_bb") {
         eval { password("hello0", "_a") };
         like $@, qr/Bad salt input.+2-character salt cannot start with _/,
             "can't start with _";
+        $@ = "";
     }
 
     # all valid
-    my $p
+    my $p;
     eval { $p = password('a', 'bbbbbbbb') };
-    is $@, undef, "salt=8 no error";
+    is $@, "", "salt=8 no error";
     is $p, '$_bbbbbbbb$DJEHexiq9NI', "salt=8 crypt";
     undef $@;
 
     eval { $p = password('a', 'cc') };
-    is $@, undef, "salt=2 no error";
+    is $@, "", "salt=2 no error";
     is $p, '$cc$DFDkLhMbQ7wZ.', "salt=2 crypt";
     undef $@;
 
@@ -119,9 +115,16 @@ else {
     ok(!$c2->check($c2), "can't just pass crypted stuff into check()");
     ok(!$c2->check(password("123", $c2->salt)), "can't just pass crypted stuff into check()");
 
-    for ("ambiente", "lampshade", "guitar") {
-        diag "$_ ". password($_, "12345555");
-        diag "$_ ". password($_, "gi");
+    diag "remake some known crypts";
+    my @answers = map {[ split /\s+/, $_ ]} split /\n/, <<'ANSWERS';
+ambiente $_12345555$V4oENXvTMYk $gi$CZewZaJV4pk
+lampshade $_12345555$JacsOKd1xTo $gi$zi7R25ah3Zw
+guitar $_12345555$2yFp.wqJEF. $gi$4tl8fx6Anh.
+ANSWERS
+
+    for my $row (@answers) {
+        is(password($row->[0], "12345555"), $row->[1], "test $row->[0] salt=8");
+        is(password($row->[0], "gi"), $row->[2], "test $row->[0] salt=2");
     }
 
     diag "reinstating a crypt object";
@@ -163,39 +166,6 @@ if ($glib) {
         my $p2 = password($password);
         ok $p1 eq $p2, "comparison test";
     }
-}
-
-{
-    *Crypt::Password::nothing = sub {
-        diag "not _looks_crypted(): $_[0]"
-            unless Crypt::Password->_looks_crypted($_[0]);
-        local *Crypt::Password::nothing = sub {};
-        say "$_[0]";
-        my $p = password($_[0]);
-        say "$p";
-        $_[2] =~ s/^_//;
-        $_[2] =~ s/^\$.*\$//;
-        diag "not the same salt: $_[2] vs ".$p->salt
-            unless $p->salt eq $_[2];
-        diag "different hash: $_[0] vs $p"
-            unless $p eq $_[0];
-        diag "doesn't validate: $p $_[1]"
-            unless $p->check($_[1]);
-        diag "validone\n\n\n\n";
-    };
-
-    for my $salt ("aa", "12341234") {
-        my $first;
-        for (1..40) {
-            my $p = Crypt::Password::_do_crypt("blah", $salt);
-            $first ||= $p;
-            if ($first ne $p) {
-                diag "$first ! $p ($salt)";
-            }
-        }
-    }
-
-    diag "on $^O";
 }
 
 1;

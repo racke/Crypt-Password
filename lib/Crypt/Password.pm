@@ -4,7 +4,6 @@ use Exporter 'import';
 our $VERSION = "0.05";
 
 use Carp;
-use v5.10;
 
 use overload
     '""' => \&crypt,
@@ -19,6 +18,7 @@ our %alg_to_id = (
     sha512 => '6',
 );
 our %id_to_alg = reverse %alg_to_id;
+sub _default_algorithm { "sha256" }
 
 our $glib = (`man crypt`)[-1] !~ /FreeSec/;
 
@@ -147,29 +147,20 @@ sub _crypt {
     my $input = delete $self->{input};
     my $salt = $self->_form_salt();
 
-    my $return = _do_crypt($input, $salt);
-    nothing($return, $input, $salt);
-    return $return;
+    return _do_crypt($input, $salt);
 }
-
-sub nothing { }
 
 sub check {
     my $self = shift;
     my $plaintext = shift;
    
     my $salt = $self->_form_salt();
-    carp "check: $plaintext $salt";
     my $new = _do_crypt($plaintext, $salt);
-    carp "\n\nchecking: $new\nagainst:  $self\n";
     return $new eq "$self";
 }
 
 sub _do_crypt {
     my ($input, $salt) = @_;
-    if (!$glib && $salt !~ /^_(..|.{8})$/) {
-        carp "Salt '$salt' doesn't look right";
-    }
     my $crypt = CORE::crypt($input, $salt);
     if (!$glib) {
         # FreeSec
@@ -209,11 +200,6 @@ our @valid_salt = ( "/", ".", "a".."z", "A".."Z", "0".."9" );
 sub _invent_salt {
     my $many = $_[1] || 8;
     join "", map { $valid_salt[rand(@valid_salt)] } 1..$many;
-}
-
-
-sub _default_algorithm {
-    "sha256"
 }
 
 1;
