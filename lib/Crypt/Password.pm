@@ -64,11 +64,36 @@ sub input {
     }
 }
 
+sub _looks_crypted {
+    my $self = shift;
+    my $string = shift || return;
+    $glib ? $string =~ m{^\$.+\$.*\$.+$}
+            # with our dollar-signs added in around the salt
+          : $string =~ /^\$(_.{8}|.{2})\$ (.{11})?$/x
+}
+
 sub salt {
     my $self = shift;
     my $provided = shift;
     if (defined $provided) {
-        $self->{salt} = $provided
+        if (!$glib) {
+            # salt must be 2 or 8 or entropy leaks in around the side
+            # I am serious
+            if ($provided =~    m/^\$(_.{8}|_?.{2})\$(.{11})?$/
+                || $provided =~ m/^  (_.{8}|_?.{2})  (.{11})?$/x) {
+                $provided = $1;
+            }
+            if ($provided =~ /^_..?$/) {
+                croak "Bad salt input:"
+                    ." 2-character salt cannot start with _";
+            }
+            $provided =~ s/^_//;
+            if ($provided !~ m/^(.{8}|.{2})$/) {
+                croak "Bad salt input:"
+                    ." salt must be 2 or 8 characters long";
+            }
+        }
+        $self->{salt} = $provided;
     }
     else {
         $self->{salt} ||= do {
@@ -77,13 +102,9 @@ sub salt {
                     (split /\$/, $self->{crypted})[2]
                 }
                 else {
-                    # TODO unsure
-                    $_ = $self->{crypted};
-                    /^_/ &&
-                        /^_(.{5,}).{11}$/
-                    ||
-                        /^(..).{11}$/;
-                    $1 || carp "Failed to match: $_";
+                    $self->{crypted} =~ /^\$(_.{8}|.{2})\$ (.{11})?$/x
+                    $1 || croak "Bad crypted input:"
+                            ." salt must be 2 or 8 characters long";
                 }
             }
             else {
@@ -126,7 +147,7 @@ sub _crypt {
     my $input = delete $self->{input};
     my $salt = $self->_form_salt();
 
-    my $return = CORE::crypt($input, $salt);
+    my $return = _do_crypt($input, $salt);
     nothing($return, $input, $salt);
     return $return;
 }
@@ -139,15 +160,24 @@ sub check {
    
     my $salt = $self->_form_salt();
     carp "check: $plaintext $salt";
-    ord($salt);
-    my $new = CORE::crypt($plaintext, $salt);
+    my $new = _do_crypt($plaintext, $salt);
     carp "\n\nchecking: $new\nagainst:  $self\n";
-    ord($new);
-    ord($self);
     return $new eq "$self";
 }
-sub ord {
-    say "orded: ". join ",", map {ord} (split //, $_[0])[0-8];
+
+sub _do_crypt {
+    my ($input, $salt) = @_;
+    if (!$glib && $salt !~ /^_(..|.{8})$/) {
+        carp "Salt '$salt' doesn't look right";
+    }
+    my $crypt = CORE::crypt($input, $salt);
+    if (!$glib) {
+        # FreeSec
+        # makes pretty ambiguous crypt strings, lets add some dollar signs
+        $crypt =~ s/^(_.{8}|..)(.{11})$/\$$1\$$2/
+            || croak "failed to understand FreeSec crypt: '$crypt'";
+    }
+    return $crypt;
 }
 
 sub _form_salt {
@@ -166,7 +196,10 @@ sub _form_salt {
     }
     else {
         # FreeSec
-        $s = "_$s" unless length($s) == 2 || length($s) == 0;
+        if (length($s) == 8) {
+            $s = "_$s"
+        }
+        return $s;
     }
     return $s;
 }
@@ -174,22 +207,10 @@ sub _form_salt {
 our @valid_salt = ( "/", ".", "a".."z", "A".."Z", "0".."9" );
 
 sub _invent_salt {
-    join "", map { $valid_salt[rand(@valid_salt)] } 1..8;
+    my $many = $_[1] || 8;
+    join "", map { $valid_salt[rand(@valid_salt)] } 1..$many;
 }
 
-sub _looks_crypted {
-    my $self = shift;
-    my $string = shift;
-    if ($string) {
-        if ($glib) {
-            $string =~ m{^\$.+\$.*\$.+$}
-        }
-        else {
-            # TODO string length = 13? bah
-            $string =~ /^(_.{5,}|..).{11}$/
-        }
-    }
-}
 
 sub _default_algorithm {
     "sha256"
@@ -305,9 +326,13 @@ Returns the salt.
 
 Cryptographic functionality depends greatly on your local B<crypt(3)>.
 Old Linux may not support sha*, many other platforms only support md5, or that
-and Blowfish, etc.
+and Blowfish, etc. You are likely fine.
 
-Functionality on FreeSec's crypt is particularly crap.
+On FreeSec's crypt, the crypted format is much different. Firstly, salt strings
+must be either two or eight characters long, in the latter case they will be
+prepended with an underscore for you. In the string you get back we also put the
+salt between two dollar signs, to make it slightly less ambiguous, less likely
+for C<password()> to assume something is crypted when it is not...
 
 =head1 SUPPORT, SOURCE
 

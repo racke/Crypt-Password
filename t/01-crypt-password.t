@@ -75,27 +75,56 @@ if ($glib) {
 }
 else {
     my $c = password("hello0");
-    diag "non-glib password: $c";
+    like $c, qr/^\$_\S{7}\$\S{11}$/, "crypted: looks good";
+    like password("hello0", "dg"), qr/^\$..\$\S{11}$/, "crypted: 2char supplied salt";
 
-    like $c, qr/^_.{8}.{11}$/, "salt comes out in understandable format";
-    
+    diag "various salt inputs";
+    # all invalid
+    for my $salt ("dgdb", "a", "123456", "12345678") {
+        eval { password("hello0", $salt) };
+        like $@, qr/Bad salt input.+2 or 7 characters/, "wrong sized salt";
+        undef $@;
+    }
+    for my $salt ("_a", "_bb") {
+        eval { password("hello0", "_a") };
+        like $@, qr/Bad salt input.+2-character salt cannot start with _/,
+            "can't start with _";
+    }
+
+    # all valid
+    my $p
+    eval { $p = password('a', 'bbbbbbbb') };
+    is $@, undef, "salt=8 no error";
+    is $p, '$_bbbbbbbb$DJEHexiq9NI', "salt=8 crypt";
+    undef $@;
+
+    eval { $p = password('a', 'cc') };
+    is $@, undef, "salt=2 no error";
+    is $p, '$cc$DFDkLhMbQ7wZ.', "salt=2 crypt";
+    undef $@;
+
+    diag "checks, comparisons";
     ok($c->check("hello0"), "check the correct password");
     ok(!$c->check("helow"), "check the wrong password");
-    isnt($c, password("hello0", "garble"), "compare a password - wrong salt");
-    isnt($c, password("hello0", "DF"), "compare a password - wrong salt");
-    isnt($c, password("hello0", "_aa"), "compare a password - wrong salt");
+    isnt($c, password("hello0", "ga"), "compare a password - wrong salt");
+    isnt($c, password("hello0", "DADAdada"), "compare a password - wrong salt");
+    isnt($c, password("hello0", "etcetcet"), "compare a password - wrong salt");
     is($c, password("hello0", $c->salt), "compare a password - correct salt");
+    isnt($c, password("hello1", $c->salt), "wrong password");
     
-    isnt(password("007", "blah"), password("007", "BLAH"), "compare a password - wrong salt");
-    is(my $c2 = password("123", "123"), password("123", "123"), "compare a password - correct salt");
+    isnt(password("007", "blahblah"), password("007", "BLAHblah"), "compare a password - wrong salt");
+    is(my $c2 = password("123", "12341234"), password("123", "12341234"), "compare a password - correct salt");
     ok($c2->check("123"), "check the correct password");
+    ok(!$c2->check("12341234"), "check the wrong password");
+    ok(!$c2->check($c2), "can't just pass crypted stuff into check()");
+    ok(!$c2->check(password("123", $c2->salt)), "can't just pass crypted stuff into check()");
 
-    diag "\n\n\n";
-    my $cc = password("abcd", "abcd");
-    diag "$cc";
-    ok($cc->check("abcd"), "check correct");
-    ok(!$cc->check("gbbbg"), "check incorrect");
+    for ("ambiente", "lampshade", "guitar") {
+        diag "$_ ". password($_, "12345555");
+        diag "$_ ". password($_, "gi");
+    }
 
+    diag "reinstating a crypt object";
     my $c2_2 = password("$c2");
     is($c2, $c2_2, "stringified and back");
     is("$c2", "$c2_2", "stringified and back");
@@ -103,20 +132,7 @@ else {
     ok(!$c2_2->check("23"), "stringified and back, check incorrect");
     ok($c2->check("123"), "123 still good");
     is($c2_2->salt, "123", "can extract the salt");
-    ok(!password("$c2")->check("_123123"), "stolen password recrypted");
-
-    my %saltlen = map { $_ => {} } 1..15;
-    while (my ($len,$uniq) = each %saltlen) {
-        my $s = "b" x $len;
-        for (1..50) {
-            my $p = password("a", $s); 
-            $uniq->{"$p"}++;
-        }
-    }
-    while (my ($len,$uniq) = each %saltlen) {
-        use feature 'say';
-        say "when salt is $len long, ".(keys %$uniq)." different things happen";
-    }
+    ok(!password("$c2")->check('$_12341234$123'), "can't just pass crypted stuff into check()");
 }
 
 if ($glib) {
@@ -167,28 +183,17 @@ if ($glib) {
             unless $p->check($_[1]);
         diag "validone\n\n\n\n";
     };
-    diag "experiments";
-    diag password("password", "salt");
-    diag password("password", "sal");
-    diag password("password", "sa");
-    diag password("password", "s");
-    diag password("password", "s");
-    diag password("password", "a");
-    diag password("password", "a");
-    diag password("passwod", "a");
-    diag password("password", "");
-    diag password("password", "_3333salt");
-    diag password("password", "_2222salt");
-    diag password("password", "_2222salt123456789abcdefghijklmnop");
-    diag password("password", "a2222salt");
-    diag password("password", "a2222salt");
-    diag password("password", "_2222salt");
-    diag password("password", "_2222sult");
 
-    my $password = "blah";
-    my $p1 = password('_blah..?UN0esbtjX/Ww');
-    my $p2 = password('007', 'blah');
-    ok $p1 eq $p2, "comparison test";
+    for my $salt ("aa", "12341234") {
+        my $first;
+        for (1..40) {
+            my $p = Crypt::Password::_do_crypt("blah", $salt);
+            $first ||= $p;
+            if ($first ne $p) {
+                diag "$first ! $p ($salt)";
+            }
+        }
+    }
 
     diag "on $^O";
 }
