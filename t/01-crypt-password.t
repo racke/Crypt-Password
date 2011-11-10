@@ -96,37 +96,27 @@ else {
     ok($cc->check("abcd"), "check correct");
     ok(!$cc->check("gbbbg"), "check incorrect");
 
-    ok(password("aa", "b")->check("aa"), "-b");
-    ok(password("aa", "bb")->check("aa"), "-b");
-    ok(password("aa", "bbb")->check("aa"), "-b");
-    ok(password("aa", "bbbb")->check("aa"), "-b");
-    ok(password("aa", "bbbbb")->check("aa"), "-b");
-    ok(password("aa", "bbbbbb")->check("aa"), "-b");
-    ok(password("aa", "bbbbbbb")->check("aa"), "-b");
-    ok(password("aa", "bbbbbbbb")->check("aa"), "-b");
-    ok(password("aa", "bbbbbbbbb")->check("aa"), "-b");
-
-    for my $s ("bbb", "ggggg", "666666", "44444444") {
-        say "salt: $salt";
-        my %uniq;
-        for (1..50) {
-            my $p = password("a", "bbb");
-            $uniq{"$p"}++;
-        }
-        if (keys %uniq > 1) {
-            use YAML::Syck;
-            say (keys %uniq)." keys!";
-            say Dump(\%uniq);
-        }
-    }
-
     my $c2_2 = password("$c2");
     is($c2, $c2_2, "stringified and back");
+    is("$c2", "$c2_2", "stringified and back");
     ok($c2_2->check("123"), "stringified and back, check correct");
     ok(!$c2_2->check("23"), "stringified and back, check incorrect");
     ok($c2->check("123"), "123 still good");
     is($c2_2->salt, "123", "can extract the salt");
     ok(!password("$c2")->check("_123123"), "stolen password recrypted");
+
+    my %saltlen = map { $_ => {} } 1..15;
+    while (my ($len,$uniq) = each %saltlen) {
+        my $s = "b" x $len;
+        for (1..50) {
+            my $p = password("a", "bbb");
+            $uniq->{"$p"}++;
+        }
+    }
+    while (my ($len,$uniq) = each %saltlen) {
+        use feature 'say';
+        say "when salt is $len long, ".(keys %$uniq)." different things happen";
+    }
 }
 
 if ($glib) {

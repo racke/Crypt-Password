@@ -4,6 +4,7 @@ use Exporter 'import';
 our $VERSION = "0.05";
 
 use Carp;
+use v5.10;
 
 use overload
     '""' => \&crypt,
@@ -36,8 +37,6 @@ sub crypt_password {
 sub password {
     my $self = bless {}, __PACKAGE__;
 
-    carp "Got args: @_\n";
-    
     $self->input(shift);
     
     unless ($self->{crypted}) {
@@ -153,7 +152,7 @@ sub ord {
 
 sub _form_salt {
     my $self = shift;
-    my $s = $self->{salt};
+    my $s = $self->salt;
     croak "undef salt!?" unless defined $s;
     if ($glib) {
         # glib
