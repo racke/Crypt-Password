@@ -109,7 +109,7 @@ else {
     while (my ($len,$uniq) = each %saltlen) {
         my $s = "b" x $len;
         for (1..50) {
-            my $p = password("a", "bbb");
+            my $p = password("a", $s); 
             $uniq->{"$p"}++;
         }
     }
