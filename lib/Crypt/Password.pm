@@ -96,7 +96,8 @@ sub salt {
         $self->{salt} = $provided;
     }
     else {
-        $self->{salt} ||= do {
+        return $self->{salt} if defined $self->{salt};
+        return $self->{salt} = do {
             if ($self->{crypted}) {
                 if ($glib) {
                     (split /\$/, $self->{crypted})[2]
