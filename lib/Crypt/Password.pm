@@ -102,9 +102,12 @@ sub salt {
                     (split /\$/, $self->{crypted})[2]
                 }
                 else {
-                    $self->{crypted} =~ /^\$(_.{8}|.{2})\$ (.{11})?$/x
-                    $1 || croak "Bad crypted input:"
+                    $self->{crypted} =~ /^\$(_.{8}|.{2})\$ (.{11})?$/x;
+                    my $s = $1;
+                    $s || croak "Bad crypted input:"
                             ." salt must be 2 or 8 characters long";
+                    $s =~ s/^_//;
+                    $s
                 }
             }
             else {

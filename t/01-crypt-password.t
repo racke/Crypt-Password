@@ -75,7 +75,7 @@ else {
 
     diag "various salt inputs";
     # all invalid
-    for my $salt ("dgdb", "a", "123456", "12345678") {
+    for my $salt ("dgdb", "a", "123456", "1234567", "123456789") {
         eval { password("hello0", $salt) };
         like $@, qr/Bad salt input.+2 or 8 characters/, "wrong sized salt";
         $@ = "";
@@ -134,7 +134,7 @@ ANSWERS
     ok($c2_2->check("123"), "stringified and back, check correct");
     ok(!$c2_2->check("23"), "stringified and back, check incorrect");
     ok($c2->check("123"), "123 still good");
-    is($c2_2->salt, "123", "can extract the salt");
+    is($c2_2->salt, "12341234", "can extract the salt");
     ok(!password("$c2")->check('$_12341234$123'), "can't just pass crypted stuff into check()");
 }
 
